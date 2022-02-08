@@ -6,7 +6,7 @@ The Telco data contains information about almost seven thousand three hundred us
 
 ### Problem Statement
 
-The Telco industry heavily relies on retaining existing customers. It’s vital for these organizations looking to grow their business without relying too heavily on the significantly higher cost of acquiring new customers. Marketing, sales, and customer retention departments need to work to make sure customers are satisfied, provide them with incentives, and present offers at the right time to reduce churn
+The Telco industry heavily relies on retaining existing customers. It’s vital for these organizations looking to grow their business without relying too heavily on the significantly higher cost of acquiring new customers. Marketing, sales, and customer retention departments need to work to make sure customers are satisfied, provide them with incentives, and present offers at the right time to reduce churn.
 
 ### Objective
 
