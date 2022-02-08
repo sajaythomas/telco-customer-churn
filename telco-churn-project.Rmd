@@ -1,0 +1,711 @@
+---
+title: "TELCO CUSTOMER CHURN"
+author: 
+course: Programming for Data Science
+output:
+  html_document:
+    df_print: paged
+---
+# Libraries that are being used for data pre-processing.
+```{r,warning=FALSE,message=FALSE}
+library("dplyr")
+library("tidyverse")
+```
+
+# Importing the files
+### Data source: Telco Customer Churn/Kaggle
+```{r,warning=FALSE,message=FALSE}
+df = read.csv("Telco_Customer_Dataset_Dirty.csv")
+```
+
+# Understanding the Data
+### Head of the data
+```{r,warning=FALSE,message=FALSE}
+head(df)
+```
+
+### Dimension of the data
+```{r,warning=FALSE,message=FALSE}
+dim(df)
+```
+
+### str()  used for compactly displaying the internal structure of a R object
+```{r,warning=FALSE,message=FALSE}
+str(df)
+```
+
+# Data Cleaning
+
+#### Indentifying total duplicate values 
+```{r,warning=FALSE,message=FALSE}
+sum(duplicated(df$customerID))
+```
+#### Removing duplicated rows
+```{r,warning=FALSE,message=FALSE}
+df = df[!duplicated(df$customerID), ]
+```
+
+#### Checking if any duplicates are remaining
+```{r,warning=FALSE,message=FALSE}
+sum(duplicated(df$customerID))
+print(dim(df))
+```
+
+
+### Checking 'na' collumns
+```{r,warning=FALSE,message=FALSE}
+colSums(is.na(df))
+```
+
+### Finding missing values in the  columns
+```{r,warning=FALSE,message=FALSE}
+colSums(df == "")
+```
+### Droping columns with missing or unecessary values 
+```{r,warning=FALSE,message=FALSE}
+drop <- c("RowId","Supplementary.Line")
+df = df[,!(names(df) %in% drop)]
+
+```
+'Row ID' and 'Supplementary.Line' is dropped.
+
+RowID is a concatenation of customerID + Contract + PaymentMethod which is probably only being used in Data Warehousing
+
+Supplementary.Line has more than 80% missing values and it's safe to drop as it may cause bias 
+
+
+### Viewing rows that contains missing values
+```{r,warning=FALSE,message=FALSE}
+new_DF <- df[rowSums(is.na(df)) > 0,]
+head(new_DF,20)
+```
+### Droping rows that contains 'NaN'
+```{r,warning=FALSE,message=FALSE}
+df = na.omit(df)
+colSums(is.na(df))
+```
+
+
+```{r,warning=FALSE,message=FALSE}
+head(df)
+```
+## Standardizing the attributes
+
+#### Grouping 'gender' attributes reveals that various gender attributes were used.
+```{r,warning=FALSE,message=FALSE}
+df %>% group_by(gender)%>%  dplyr::summarise(count = n())
+```
+#### Standardizing the 'gender' column.
+```{r,warning=FALSE,message=FALSE}
+male_cat <- c('m','male','M')
+female_cat <- c('f','female','F')
+df$gender[df$gender %in% male_cat]  <- 'Male'
+df$gender[df$gender %in% female_cat]  <- 'Female'
+```
+
+#### Checking gender standardization results.
+```{r,warning=FALSE,message=FALSE}
+df %>% group_by(gender)%>%  dplyr::summarise(count = n())
+
+```
+
+#### Standardizing 'Paperless Billing'.
+```{r,warning=FALSE,message=FALSE}
+df %>% group_by(PaperlessBilling)%>%  dplyr::summarise(count = n())
+```
+
+```{r,warning=FALSE,message=FALSE}
+yes_cat <- c('n','no','N')
+no_cat <- c('y','yes','Y')
+df$PaperlessBilling[df$PaperlessBilling %in% yes_cat]  <- 'Yes'
+df$PaperlessBilling[df$PaperlessBilling %in% no_cat]  <- 'No'
+
+df %>% group_by(PaperlessBilling)%>%  dplyr::summarise(count = n())
+
+```
+
+#### Standardizing 'Contract'.
+```{r,warning=FALSE,message=FALSE}
+df %>% group_by(Contract)%>%  dplyr::summarise(count = n())
+```
+
+```{r,warning=FALSE,message=FALSE}
+one_cat <- c('1 year')
+two_cat <- c('2 year')
+df$Contract[df$Contract %in% one_cat]  <- 'One year'
+df$Contract[df$Contract %in% two_cat]  <- 'Two year'
+
+df %>% group_by(Contract)%>%  dplyr::summarise(count = n())
+
+```
+
+
+### Dimension of the data.
+```{r,warning=FALSE,message=FALSE}
+dim(df)
+```
+
+### Saving the cleaned dataset.
+```{r,warning=FALSE,message=FALSE}
+write.csv(df,'Telco_Customer_Dataset_Cleaned.csv')
+```
+
+
+
+# Exploring the cleaned data.
+
+
+### Describing the columns/variables. 
+
+**Column Name**|**Description**
+:-----:|:-----:
+|customerID | Customer ID|
+gender | Customer gender
+SeniorCitizen | Whether the customer is a senior citizen or not 
+Partner |Whether the customer has a partner or not
+Dependents | Whether the customer has dependents or not 
+tenure | Number of months the customer has stayed with the company
+PhoneService | Whether the customer has a phone service or not
+MultipleLines | Whether the customer has multiple lines or not 
+InternetService | Customer’s internet service provider 
+OnlineSecurity | Whether the customer has online security or not 
+OnlineBackup | Whether the customer has online backup or not 
+DeviceProtection | Whether the customer has device protection or not 
+TechSupport | Whether the customer has tech support or not 
+StreamingTV | Whether the customer has streaming TV or not 
+StreamingMovies |Whether the customer has streaming movies or not 
+Contract | The contract term of the customer 
+PaperlessBilling | Whether the customer has paperless billing or not 
+PaymentMethod |The customer’s payment method 
+MonthlyCharges | The amount charged to the customer monthly
+TotalCharges |The total amount charged to the customer
+
+
+### Libraries loaded for data exploration.
+```{r,warning=FALSE,message=FALSE}
+library(ggplot2)
+library(caret)
+library(cowplot)
+library(ggcorrplot)
+library(gridExtra)
+```
+
+# Importing the cleaned files
+```{r,warning=FALSE,message=FALSE}
+df = read.csv("Telco_Customer_Dataset_Cleaned.csv")
+```
+
+## Understanding customer through EDA
+
+### Does the product suit people with family ?
+```{r,warning=FALSE,message=FALSE}
+
+x = ggplot(df, aes(Partner, fill = Churn)) + 
+  geom_bar() +
+  labs(title = "Customer Partner Status", 
+       x = "Does the Customer have a Partner?", 
+       y = "Count") 
+y= ggplot(df, aes(Dependents, fill = Churn)) + 
+  geom_bar() +
+  labs(title = "Customer Dependents Status", 
+       x = "Does the Customer have Dependents?", 
+       y = "Count")
+
+grid.arrange(x, y,nrow=1,ncol=2)
+```
+
+#### Customers with a partner or dependents are much less likely to cancel their service.
+
+#### This shows that the client's product is mostly attractive to customers with families.
+
+#### The company should improve their product to suit customers without dependents or a partner to able to maximize their profit.
+
+
+
+## How long is the customer retention?
+```{r,warning=FALSE,message=FALSE}
+
+df <- mutate(df, tenure_bin = tenure)
+
+df$tenure_bin[df$tenure_bin >=0 & df$tenure_bin <= 12] <- '0-1 year'
+df$tenure_bin[df$tenure_bin > 12 & df$tenure_bin <= 24] <- '1-2 years'
+df$tenure_bin[df$tenure_bin > 24 & df$tenure_bin <= 36] <- '2-3 years'
+df$tenure_bin[df$tenure_bin > 36 & df$tenure_bin <= 48] <- '3-4 years'
+df$tenure_bin[df$tenure_bin > 48 & df$tenure_bin <= 60] <- '4-5 years'
+df$tenure_bin[df$tenure_bin > 60 & df$tenure_bin <= 72] <- '5-6 years'
+
+df$tenure_bin <- as.factor(df$tenure_bin)
+options(repr.plot.width =6, repr.plot.height = 3)
+ggplot(df, aes(tenure_bin, fill = Partner)) + geom_bar()
+```
+
+#### The highest frequency of customer retention period is 0 -1 year, this shows that the client has recently gained new customer through a recent promotion.
+
+#### The number of churn decreases with the number of months which indicates that old customers are less difficult to maintain their contract.
+
+#### The median also revealed that 10 months is common customer attrition period. 
+
+#### The company manages to maintain older clientele. The focus of the company should be in the implementation of strategies for the new clients.
+
+```{r,warning=FALSE,message=FALSE}
+options(repr.plot.width =6, repr.plot.height = 2)
+ggplot(df, aes(y= tenure, x = "", fill = Churn)) + 
+geom_boxplot()+ 
+theme_bw()+
+xlab("") +ylab("Tenure (months)")
+```
+
+
+# Secondary exploration of data.
+
+### Libraries used for secondary exploration.
+```{r message=FALSE, warning=FALSE}
+library("tidyverse")
+library("dplyr")
+```
+
+### Reading the clean data
+```{r message=FALSE, warning=FALSE}
+df = read.csv("Telco_Customer_Dataset_Cleaned.csv")
+```
+
+### Contract Type
+#### Which contract type has the highest churn?
+
+```{r}
+ggplot(df, aes(Contract, fill = Churn)) + 
+  geom_bar() +
+  labs(x = "Type of Contract Customer Has", 
+       y = "Count") +
+  ggtitle("Popularity of Contract Types") + 
+  theme(plot.title = element_text(hjust = 0.5, size = 14, face = "bold"))
+```
+
+#### Customers that have longer than a year contract tend to stay with their telco compared to those that only have monthly contracts. 
+#### Long terms contracts should come with attractive package to ensure customers favor them better than monthly contracts.
+
+## Monthly Charges
+#### How does the monthly charges affect churn?
+
+```{r, message=FALSE}
+ggplot(df, aes(MonthlyCharges, fill = Churn)) + 
+  geom_histogram() +
+  labs(x = "Monthly Charge to Customer", 
+       y = "Count") +
+  ggtitle("Monthly Charges Histogram") + 
+  theme(plot.title = element_text(hjust = 0.5, size = 14, face = "bold"))
+```
+
+#### Customers having higher monthly charges tend to churn more than those with lower charges. This may be due to them believing the service provided is not value for money.
+
+
+## Internet Service
+
+### Is there any internet service with a higher churn rate?
+```{r, warning=FALSE, message=FALSE} 
+
+df %>%
+  dplyr::select(Churn, InternetService, OnlineSecurity, OnlineBackup) %>%
+  mutate(OnlineSecurity = factor(OnlineSecurity, 
+                                 levels = c("Yes", "No", "No internet service"),
+                                 labels = c("Security", "No security", "No internet")),
+         OnlineBackup = factor(OnlineBackup,
+                               levels =  c("Yes", "No", "No internet service"),
+                               labels = c("Backup", "No backup", "No internet"))) %>%
+  group_by(Churn, InternetService, OnlineSecurity, OnlineBackup) %>%
+  count() %>%
+  ggplot(aes(x = InternetService, y = n, fill = Churn)) +
+  geom_col(position = "fill") +
+  scale_fill_brewer(palette = "Set2") +
+  facet_grid(OnlineBackup ~ OnlineSecurity) +
+  labs(y = "Customers") +
+  ggtitle("Customer Churn by Internet service") + 
+  theme(plot.title = element_text(hjust = 0.5, size = 14, face = "bold")) +
+  scale_y_continuous(labels = scales::percent)  
+```
+
+
+
+## Value-Added Services
+
+```{r, warning = FALSE, message=FALSE}
+df %>%
+  mutate(SeniorCitizen = ifelse(SeniorCitizen == 0, "No", "Yes")) -> categorical
+
+categorical %>%
+  dplyr::select(gender:Dependents, PhoneService:PaymentMethod, Churn) -> categorical 
+
+categorical %>%
+  dplyr::select(MultipleLines, OnlineSecurity:StreamingMovies, Churn) %>%
+  filter(MultipleLines != "No phone service" &
+           OnlineSecurity != "No internet service") -> c2
+           
+gather(c2, columns, value, -Churn) -> c3
+
+ggplot(c3)+
+  geom_bar(aes(x = value, fill = Churn), position = "fill", stat = "count")+
+  facet_wrap(~columns)+ 
+  xlab("Attributes") +
+  ggtitle("Value-Added Service Against Churn") + 
+  theme(plot.title = element_text(hjust = 0.5, size = 14, face = "bold"))
+```
+
+#### Those who subscribe to the service of Device Protection, Online Backup, Online Security and Tech Support have lower churn rate compared to those who didn't subscribe.
+
+
+#Building Prediction Models for Predicting Customer Churn
+We are going to build 3 types of model namely:-
+1) Logistic Regression
+2) Decision Tree
+3) Random Forest
+
+```{r message=FALSE, warning=FALSE}
+library(caTools)
+library(car)
+library(pROC)
+library(MASS)
+library(cowplot)
+library(e1071)
+
+
+```
+
+## Minor Cleaning Before Building The dataset
+```{r message=FALSE, warning=FALSE}
+data_raw = read.csv("Telco_Customer_Dataset_Cleaned.csv")
+data_raw <- dplyr::select(data_raw, -1)
+data_raw <- data_raw[complete.cases(data_raw),]
+data_raw$SeniorCitizen <- as.factor(ifelse(data_raw$SeniorCitizen==1, 'YES', 'NO'))
+```
+
+## Preparing Data For Training:
+
+## There are 5 steps we will undertake to clean the model namely:-
+
+1)We cleaning the categorical features in the dataset
+2)We standardise continuous features in the dataset
+3)We create derived features in the dataset
+4)We create dummy variables for factor variables in the dataset
+5)We build the the final dataset
+6)We split the data into train and test set.
+
+### 1) We cleaning the categorical features in the dataset
+For our machine learning purpose, we are aware that there are few categorical features for example that have 'No Internet Service' or 'No Phone Service' as  categories. Thus we can transform them as 'No' and reorganize these features.
+
+```{r message=FALSE, warning=FALSE}
+data_raw <- data.frame(lapply(data_raw, function(x) {
+  gsub("No internet service", "No", x)}))
+
+data_raw <- data.frame(lapply(data_raw, function(x) {
+  gsub("No phone service", "No", x)}))
+```
+
+### 2) We standardise continuous features in the dataset
+```{r message=FALSE, warning=FALSE}
+columns <- c("tenure", "MonthlyCharges", "TotalCharges")
+data_raw[columns] <- sapply(data_raw[columns], as.numeric)
+data_raw_int<- data_raw[,c("tenure", "MonthlyCharges", "TotalCharges")]
+data_raw_int <- data.frame(scale(data_raw_int))
+```
+
+### 3) We create derived features in the dataset
+
+Let's  proceed to create derived features from tenure, where we have made multiple bins of tenure which are in months format to  '0-1 year', '2-3 years', '3-4 years', '4-5 years', and etc.
+
+```{r message=FALSE, warning=FALSE}
+data_raw <- mutate(data_raw, tenure_bin = tenure)
+
+data_raw$tenure_bin[data_raw$tenure_bin >=0 & data_raw$tenure_bin <= 12] <- '0-1 year'
+data_raw$tenure_bin[data_raw$tenure_bin > 12 & data_raw$tenure_bin <= 24] <- '1-2 years'
+data_raw$tenure_bin[data_raw$tenure_bin > 24 & data_raw$tenure_bin <= 36] <- '2-3 years'
+data_raw$tenure_bin[data_raw$tenure_bin > 36 & data_raw$tenure_bin <= 48] <- '3-4 years'
+data_raw$tenure_bin[data_raw$tenure_bin > 48 & data_raw$tenure_bin <= 60] <- '4-5 years'
+data_raw$tenure_bin[data_raw$tenure_bin > 60 & data_raw$tenure_bin <= 72] <- '5-6 years'
+
+data_raw$tenure_bin <- as.factor(data_raw$tenure_bin)
+```
+
+### 4) Let's create dummy variables for factor variables in our dataset
+
+```{r message=FALSE, warning=FALSE}
+data_raw_cat <- data_raw[,-c(1,6,19,20)]
+dummy<- data.frame(sapply(data_raw_cat,function(x) data.frame(model.matrix(~x-1,data =data_raw_cat))[,-1]))
+head(dummy)
+```
+
+### 5) We build the the final dataset by combining numeric and dummy data frames
+```{r message=FALSE, warning=FALSE}
+data_final <- cbind(data_raw_int,dummy)
+head(data_final)
+```
+
+### 6) We split the data into train and test set.
+
+```{r message=FALSE, warning=FALSE}
+set.seed(123)
+indices = sample.split(data_final$Churn, SplitRatio = 0.7)
+train = data_final[indices,]
+validation = data_final[!(indices),]
+```
+
+# Building Machine Learning Models & Evaluating Them
+## 1) Logistic Regression 
+
+```{r message=FALSE, warning=FALSE}
+logisticRegressionModel_1 = glm(Churn ~ ., data = train, family = "binomial")
+summary(logisticRegressionModel_1)
+```
+
+We will be using stepAIC function for variable selection. It is a continpus process of adding and removing variables for us to get a subset of variables that will provide us the best performing logistic regression model.
+
+```{r message=FALSE, warning=FALSE}
+logisticRegressionModel_2<- stepAIC(logisticRegressionModel_1, direction="both")
+summary(logisticRegressionModel_2)
+```
+
+Also, we can use Variance Inflation Factor (vif) to remove redundant variables or  predictors that have high multicollinearity between them. 
+Multicollinearity exists between two or more predictor variables when they are highly related to each other. As a result,  then it becomes tough for us to analyze and understand the impact of independent variable on the dependent variables.
+
+A predictor getting VIF lesser than 2 are considered safe and it can be understood that the predictor is not correlated with other predictor variables in the dataset. 
+
+The higher the VIF is, the more signifcant the correlation of the predictor variable is with other predictor variables. 
+
+```{r message=FALSE, warning=FALSE}
+vif(logisticRegressionModel_2)
+```
+
+We are now removing the DeviceProtection variable since it has high p-value 
+```{r message=FALSE, warning=FALSE}
+logisticRegressionModel_3 <-glm(formula = Churn ~ tenure + MonthlyCharges + SeniorCitizen + 
+                Partner + InternetService.xFiber.optic + InternetService.xNo + 
+                OnlineSecurity + OnlineBackup + TechSupport + 
+                StreamingTV + Contract.xOne.year + Contract.xTwo.year + PaperlessBilling + 
+                PaymentMethod.xElectronic.check + tenure_bin.x1.2.years + 
+                tenure_bin.x5.6.years, family = "binomial", data = train)
+summary(logisticRegressionModel_3)
+vif(logisticRegressionModel_3)
+```
+
+We are now removing the StreamingTV variable since it has high p-value 
+```{r message=FALSE, warning=FALSE}
+logisticRegressionModel_4 <- glm(formula = Churn ~ tenure + MonthlyCharges + SeniorCitizen + 
+                 Partner + InternetService.xFiber.optic + InternetService.xNo + 
+                 OnlineSecurity + OnlineBackup + TechSupport +  
+                 Contract.xOne.year + Contract.xTwo.year + PaperlessBilling + 
+                 PaymentMethod.xElectronic.check + tenure_bin.x1.2.years + 
+                 tenure_bin.x5.6.years, family = "binomial", data = train)
+
+summary(logisticRegressionModel_4)
+vif(logisticRegressionModel_4)
+```
+
+logisticRegressionModel_3 has the best set of significant variables, let's use this model for prediction first
+```{r message=FALSE, warning=FALSE}
+logisticRegressionModel_final <- logisticRegressionModel_3
+```
+
+
+Model Evaluation using the validation data:
+```{r message=FALSE, warning=FALSE}
+logisticRegression_Pred_result <- predict(logisticRegressionModel_final, type = "response", newdata = validation[,-24])
+summary(logisticRegression_Pred_result)
+validation$prob <- logisticRegression_Pred_result
+```
+
+Lets use probability cutoff of 50%.
+```{r message=FALSE, warning=FALSE}
+pred_churn <- factor(ifelse(logisticRegression_Pred_result >= 0.50, "Yes", "No"))
+actual_churn <- factor(ifelse(validation$Churn==1,"Yes","No"))
+table(actual_churn,pred_churn)
+``` 
+
+Let's find the Accuracy, Sensitivity and Specificity of our model using when the cutoff is at 50%
+```{r message=FALSE, warning=FALSE}
+cutoff_churn <- factor(ifelse(logisticRegression_Pred_result >=0.50, "Yes", "No"))
+conf_final <- confusionMatrix(cutoff_churn, actual_churn, positive = "Yes")
+accuracy <- conf_final$overall[1]
+sensitivity <- conf_final$byClass[1]
+specificity <- conf_final$byClass[2]
+accuracy
+sensitivity
+specificity
+```
+
+As shown above, when we use a cutoff of 0.50, we are yielding a good accuracy and specificity, however the sensitivity is very less. Thus, we need to be able to find the optimal probability cutoff which will yield  maximum accuracy, sensitivity, and specificity
+
+```{r message=FALSE, warning=FALSE}
+perform_fn <- function(cutoff) 
+{
+  predicted_churn <- factor(ifelse(logisticRegression_Pred_result >= cutoff, "Yes", "No"))
+  conf <- confusionMatrix(predicted_churn, actual_churn, positive = "Yes")
+  accuray <- conf$overall[1]
+  sensitivity <- conf$byClass[1]
+  specificity <- conf$byClass[2]
+  out <- t(as.matrix(c(sensitivity, specificity, accuray))) 
+  colnames(out) <- c("Sensitivity", "Specificity", "Accuracy")
+  return(out)
+}
+
+options(repr.plot.width =8, repr.plot.height =6)
+summary(logisticRegression_Pred_result)
+s = seq(0.01,0.80,length=100)
+OUT = matrix(0,100,3)
+
+for(i in 1:100)
+{
+  OUT[i,] = perform_fn(s[i])
+} 
+
+plot(s, OUT[,1],xlab="Cutoff",ylab="Value",cex.lab=1.5,cex.axis=1.5,ylim=c(0,1),
+     type="l",lwd=2,axes=FALSE,col=2)
+axis(1,seq(0,1,length=5),seq(0,1,length=5),cex.lab=1.5)
+axis(2,seq(0,1,length=5),seq(0,1,length=5),cex.lab=1.5)
+lines(s,OUT[,2],col="darkgreen",lwd=2)
+lines(s,OUT[,3],col=4,lwd=2)
+box()
+legend("bottom",col=c(2,"darkgreen",4,"darkred"),text.font =3,inset = 0.02,
+       box.lty=0,cex = 0.8, 
+       lwd=c(2,2,2,2),c("Sensitivity","Specificity","Accuracy"))
+abline(v = 0.32, col="red", lwd=1, lty=2)
+axis(1, at = seq(0.1, 1, by = 0.1))
+```
+
+Choosing a cutoff value of 0.32% for our final Logistisc Regression model, where the three curves of accuracy, specificty and sensitivity meet
+
+```{r message=FALSE, warning=FALSE}
+cutoff_churn <- factor(ifelse(logisticRegression_Pred_result >=0.32, "Yes", "No"))
+conf_final <- confusionMatrix(cutoff_churn, actual_churn, positive = "Yes")
+logisticRegression_accuracy <- conf_final$overall[1]
+logisticRegression_sensitivity <- conf_final$byClass[1]
+logisticRegression_specificity <- conf_final$byClass[2]
+logisticRegression_accuracy
+logisticRegression_sensitivity
+logisticRegression_specificity
+```
+
+With a cutoff probability value of 0.32, we are getting better values of accuracy, sensitivity and specificity in the validation data.
+
+## 2) Decision Tree 
+Preparing the dataset for training and testing
+
+```{r message=FALSE, warning=FALSE}
+set.seed(123)
+data_final$Churn <- as.factor(data_final$Churn)
+indices = sample.split(data_final$Churn, SplitRatio = 0.7)
+train = data_final[indices,]
+validation = data_final[!(indices),]
+```
+
+Training the Decision Tree model using all the predictor variables & performing prediction on the validation dataset
+
+```{r message=FALSE, warning=FALSE}
+options(repr.plot.width = 10, repr.plot.height = 8)
+library(rpart)
+library(rpart.plot)
+
+#Training The Decision Tree Model
+Dtree_model = rpart(Churn ~., data = train, method = "class")
+summary(Dtree_model)
+
+#Predicting the result of churning on the validation dataset using the trained model
+DT_Pred_result <- predict(Dtree_model,type = "class", newdata = validation[,-24])
+conf_final <- confusionMatrix(validation$Churn, DT_Pred_result)
+
+DT_accuracy <- conf_final$overall[1]
+DT_sensitivity <- conf_final$byClass[1]
+DT_specificity <- conf_final$byClass[2]
+
+DT_accuracy 
+DT_sensitivity 
+DT_specificity 
+
+```
+
+## 3) Random Forest Model
+Preparing the dataset for training and testing
+
+```{r message=FALSE, warning=FALSE}
+library(randomForest)
+set.seed(123)
+data_final$Churn <- as.factor(data_final$Churn)
+
+indices = sample.split(data_final$Churn, SplitRatio = 0.7)
+train = data_final[indices,]
+validation = data_final[!(indices),]
+```
+
+Model Training
+```{r message=FALSE, warning=FALSE}
+model.rf <- randomForest(Churn ~ ., data=train, proximity=FALSE,importance = FALSE,
+                        ntree=500,mtry=4, do.trace=FALSE)
+model.rf
+```
+
+Let's predict the result on the validation set and check the Confusion Matrix.
+
+```{r message=FALSE, warning=FALSE}
+RandomForest_Pred_result <- predict(model.rf, newdata=validation[,-24])
+table(RandomForest_Pred_result, validation$Churn)
+
+conf_final <- confusionMatrix(validation$Churn, RandomForest_Pred_result)
+
+RF_accuracy <- conf_final$overall[1]
+RF_sensitivity <- conf_final$byClass[1]
+RF_specificity <- conf_final$byClass[2]
+
+RF_accuracy 
+RF_sensitivity 
+RF_specificity 
+```
+
+Variable Importance Plot:
+As you can see below, this is the Variable Importance Plot which shows the most significant vairable or attribute in descending order by mean decrease in Gini. The Mean decrease Gini shows how pure the nodes are at the end of the tree. The Higher the Gini Index is, the better the homogeneity of it.
+
+```{r message=FALSE, warning=FALSE}
+varImpPlot(model.rf)
+```
+
+Let's Check the AUC for all three classifiers.
+The Area Under the Curve (AUC) is the ability of  a classifier to differentiate between classes and is used as a summary of the ROC curve. The higher the AUC is, the better the performance of the model in differentiating between the positive and negative classes.
+
+### The Area Under the Curve (AUC) Graph Between The Three Classifiers
+
+```{r message=FALSE, warning=FALSE}
+options(repr.plot.width =10, repr.plot.height = 8)
+
+glm.roc <- roc(response = validation$Churn, predictor = as.numeric(logisticRegression_Pred_result))
+DT.roc <- roc(response = validation$Churn, predictor = as.numeric(DT_Pred_result))
+rf.roc <- roc(response = validation$Churn, predictor = as.numeric(RandomForest_Pred_result))
+
+plot(glm.roc,      legacy.axes = TRUE, print.auc.y = 1.0, print.auc = TRUE)
+plot(DT.roc, col = "blue", add = TRUE, print.auc.y = 0.65, print.auc = TRUE)
+plot(rf.roc, col = "red" , add = TRUE, print.auc.y = 0.85, print.auc = TRUE)
+legend("bottom", c("Random Forest", "Decision Tree", "Logistic"),
+       lty = c(1,1), lwd = c(2, 2), col = c("red", "blue", "black"), cex = 0.75)
+
+```
+
+# A brief summary for all the 3 models used:
+
+## Logistic Regression:
+
+```{r message=FALSE, warning=FALSE}
+sprintf("Accuracy:  %f", logisticRegression_accuracy)
+sprintf("Sensitivity:  %f", logisticRegression_sensitivity)
+sprintf("Specificity:  %f", logisticRegression_specificity)
+```
+
+## DecisionTrees:
+```{r message=FALSE, warning=FALSE}
+sprintf("Accuracy:  %f", DT_accuracy)
+sprintf("Sensitivity:  %f", DT_sensitivity)
+sprintf("Specificity:  %f", DT_specificity)
+```
+
+## Random Forest:
+```{r message=FALSE, warning=FALSE}
+sprintf("Accuracy:  %f", RF_accuracy)
+sprintf("Sensitivity:  %f", RF_sensitivity)
+sprintf("Specificity:  %f", RF_specificity)
+```
+  
